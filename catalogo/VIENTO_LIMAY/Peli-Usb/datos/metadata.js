@@ -1,0 +1,54 @@
+window.VideotecaMetadata = {
+  "titulo": "Viento Limay",
+  "director": "JaJo EkiZ",
+  "anio": 1993,
+  "duracion": "1h 24min",
+  "genero": "Drama / Neo-Noir Patagónico",
+  "sinopsis": "En un paraje remoto de la estepa de Río Negro, un arriero jubilado y un joven operador de video independiente se topan con una señal de radio misteriosa que parece transmitir desde el futuro. A través del viento incesante del Limay, desentrañan una conspiración analógica que cambiará el destino del valle.",
+  "region": "Río Negro, Patagonia Argentina",
+  "idioma": "Español",
+  "subtitulos": "Español (SRT)",
+  "archivo_video": "Pelicula_Regional.mp4",
+  "archivo_subtitulos": "Pelicula_Regional.srt",
+  "archivo_portada": "datos/portada.png",
+  "subtitulos_raw": `1
+00:00:01,000 --> 00:00:04,000
+[Viento Limay]
+Una producción de JaJo EkiZ VJ.
+
+2
+00:00:05,000 --> 00:00:08,000
+En las profundidades de la estepa patagónica...
+
+3
+00:00:09,000 --> 00:00:12,000
+El viento susurra secretos del pasado.
+
+4
+00:00:13,000 --> 00:00:16,000
+"No te detengas", dijo el arriero.
+
+5
+00:00:17,000 --> 00:00:20,000
+[Música Synthwave de fondo intensificándose]`,
+  "bitacora": [
+    {
+      "usuario": "vj_patagonico",
+      "fecha": "2026-03-12",
+      "comentario": "Excelente atmósfera synth-folk. Las tomas del río Limay con filtro verde son de otro mundo. ¡Joya oculta!",
+      "calificacion": 5
+    },
+    {
+      "usuario": "retro_fan_88",
+      "fecha": "2026-04-05",
+      "comentario": "El ritmo es lento pero la tensión analógica se mantiene hasta el final. ¡Qué buena banda sonora!",
+      "calificacion": 4
+    },
+    {
+      "usuario": "ana_bariloche",
+      "fecha": "2026-05-20",
+      "comentario": "La vi de chica en VHS y volver a encontrarla en este pendrive en el videoclub es pura nostalgia. ¡Cuiden el pendrive!",
+      "calificacion": 5
+    }
+  ]
+};

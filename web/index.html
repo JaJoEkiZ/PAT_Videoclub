@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MS-DOS Shell — VIDEOCLÚ PUTREFACTOR A TORSIÓN</title>
+  <link rel="stylesheet" href="estilos.css">
+</head>
+<body>
+  
+  <!-- EFECTOS CRT ANALÓGICOS (Scanlines, Flicker, Ruido Canvas) -->
+  <div class="crt-overlay scanlines"></div>
+  <div class="crt-overlay flicker"></div>
+  <div class="crt-overlay glass-reflection"></div>
+  <canvas id="crt-static-canvas" class="crt-overlay crt-static"></canvas>
+
+  <div class="dos-shell-wrapper">
+    
+    <!-- BARRA DE TÍTULO PRINCIPAL MS-DOS SHELL -->
+    <div class="dos-title-bar">
+      MS-DOS Shell -- VIDEOCLÚ PUTREFACTOR A TORSIÓN v2.5
+    </div>
+
+    <!-- MENÚ DE OPCIONES SUPERIOR (File Options View Tree Help) -->
+    <div class="dos-menu-bar">
+      <div class="dos-menu-item active" data-view="auditoria">Auditoría</div>
+      <div class="dos-menu-item" data-view="generador">GenerarUSB</div>
+      <div class="dos-menu-item" data-view="socios">Socios</div>
+      <div class="dos-menu-item" data-view="eventos">Eventos</div>
+      <div class="dos-menu-item" data-view="catalogo">Catálogo</div>
+      <div class="dos-menu-item" id="btn-toggle-crt-top" style="margin-left: auto;">[ CRT FX: ON ]</div>
+    </div>
+
+    <!-- BARRA DE UNIDADES DE DISCO ([A:] [B:] [C:\PELI-USB]) -->
+    <div class="dos-drives-bar">
+      <span>Unidad Activa:</span>
+      <button class="dos-drive-btn">[A:]</button>
+      <button class="dos-drive-btn">[B:]</button>
+      <button class="dos-drive-btn active" id="btn-drive-c">[C:\PELI-USB]</button>
+    </div>
+
+    <!-- CONTENEDOR PRINCIPAL SPLIT MS-DOS SHELL -->
+    <div class="dos-split-container">
+      
+      <!-- PANEL IZQUIERDO: TREE VIEW & EVENTO ACTIVO -->
+      <div class="dos-pane-left">
+        
+        <!-- Box 1: Directory Tree -->
+        <div class="dos-box" style="height: 180px;">
+          <div class="dos-box-header">
+            <span>Directory Tree</span>
+            <span>C:\*.*</span>
+          </div>
+          <div class="dos-box-body">
+            <ul class="dos-tree-list">
+              <li class="dos-tree-item selected" id="tree-root">
+                <span class="dos-tree-icon">[+]</span> C:\PELI-USB
+              </li>
+              <li class="dos-tree-item" id="tree-catalogo">
+                <span class="dos-tree-icon">├──</span> [DIR] CATALOGO
+              </li>
+              <li class="dos-tree-item" id="tree-socios">
+                <span class="dos-tree-icon">├──</span> [DIR] SOCIOS
+              </li>
+              <li class="dos-tree-item" id="tree-eventos">
+                <span class="dos-tree-icon">└──</span> [DIR] EVENTOS
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Box 2: Evento & Estado USB -->
+        <div class="dos-box" style="flex: 1;">
+          <div class="dos-box-header invert">
+            <span>System Hardware & Event Specs</span>
+          </div>
+          <div class="dos-box-body">
+            <table class="dos-info-table">
+              <tr>
+                <td class="label">EVENTO:</td>
+                <td class="val" id="dos-evt-name">Cargando...</td>
+              </tr>
+              <tr>
+                <td class="label">LUGAR:</td>
+                <td class="val" id="dos-evt-lugar">--</td>
+              </tr>
+              <tr>
+                <td class="label">USB ID:</td>
+                <td class="val highlight" id="dos-usb-id">--</td>
+              </tr>
+              <tr>
+                <td class="label">OBRA:</td>
+                <td class="val" id="dos-usb-obra">--</td>
+              </tr>
+              <tr>
+                <td class="label">ESTADO:</td>
+                <td class="val" id="dos-usb-status">DESCONOCIDO</td>
+              </tr>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- PANEL DERECHO: VISTA PRINCIPAL & ARCHIVOS SHA-256 -->
+      <div class="dos-pane-right">
+        
+        <!-- VISTA DE AUDITORÍA (DEFAULT) -->
+        <div class="dos-box view-pane active" id="pane-auditoria" style="flex: 1;">
+          <div class="dos-box-header">
+            <span id="pane-right-title">C:\PELI-USB\*.* (Auditoría Criptográfica SHA-256)</span>
+            <span id="dos-global-status">[ SIN AUDITAR ]</span>
+          </div>
+          <div class="dos-box-body" style="padding: 0;">
+            <table class="dos-table">
+              <thead>
+                <tr>
+                  <th style="width: 100px;">ESTADO</th>
+                  <th>NOMBRE DE ARCHIVO</th>
+                  <th style="width: 120px;">TAMAÑO</th>
+                </tr>
+              </thead>
+              <tbody id="dos-audit-tbody">
+                <tr><td colspan="3" style="text-align: center; color: var(--dos-green-dim); padding: 20px;">Presione [F3] o click en 'Auditar Hashes' para iniciar auditoría.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- VISTA GENERADOR -->
+        <div class="dos-box view-pane" id="pane-generador" style="flex: 1; display: none;">
+          <div class="dos-box-header">
+            <span>[F5] Generador de Pendrives Master</span>
+          </div>
+          <div class="dos-box-body">
+            <div class="dos-input-group">
+              <label>Película Máster:</label>
+              <select class="dos-select" id="gen-pelicula">
+                <option value="VIENTO_LIMAY">Viento Limay (1993) -- Videoclú Putrefactor A Torsión</option>
+              </select>
+            </div>
+            <br>
+            <div class="dos-input-group">
+              <label>Ruta Destino USB:</label>
+              <input type="text" class="dos-input" id="gen-drive-path" value="C:\Users\JaJo EkiZ\Desktop\Peli-Usb">
+            </div>
+            <br>
+            <div class="dos-input-group">
+              <label>Identificador Único (ID USB):</label>
+              <input type="text" class="dos-input" id="gen-usb-id" placeholder="Ej. USB-002">
+            </div>
+            <br>
+            <button class="dos-btn" id="btn-do-generate" style="width: 100%; justify-content: center;">
+              ⚡ [ ENTER ] Formatear, Copiar y Inyectar Firma SHA-256
+            </button>
+          </div>
+        </div>
+
+        <!-- VISTA SOCIOS -->
+        <div class="dos-box view-pane" id="pane-socios" style="flex: 1; display: none;">
+          <div class="dos-box-header">
+            <span>Base de Datos de Socios PAT</span>
+            <button class="dos-btn" id="btn-dos-add-socio" style="padding: 1px 6px;">[ + Nuevo Socio ]</button>
+          </div>
+          <div class="dos-box-body" style="padding: 0;">
+            <table class="dos-table">
+              <thead>
+                <tr>
+                  <th>N° SOCIO</th>
+                  <th>NOMBRE Y APELLIDO</th>
+                  <th>TELÉFONO</th>
+                  <th>ESTADO</th>
+                </tr>
+              </thead>
+              <tbody id="dos-socios-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- VISTA EVENTOS -->
+        <div class="dos-box view-pane" id="pane-eventos" style="flex: 1; display: none;">
+          <div class="dos-box-header">
+            <span>Eventos y Muestras Territoriales</span>
+            <button class="dos-btn" id="btn-dos-add-evento" style="padding: 1px 6px;">[ + Nuevo Evento ]</button>
+          </div>
+          <div class="dos-box-body" style="padding: 0;">
+            <table class="dos-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>EVENTO</th>
+                  <th>LUGAR</th>
+                  <th>FECHA Y HORA</th>
+                  <th>ACCIÓN</th>
+                </tr>
+              </thead>
+              <tbody id="dos-eventos-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- VISTA CATÁLOGO -->
+        <div class="dos-box view-pane" id="pane-catalogo" style="flex: 1; display: none;">
+          <div class="dos-box-header">
+            <span>Catálogo Máster PAT</span>
+          </div>
+          <div class="dos-box-body" style="padding: 0;">
+            <table class="dos-table">
+              <thead>
+                <tr>
+                  <th>CÓDIGO</th>
+                  <th>TÍTULO</th>
+                  <th>DIRECTOR</th>
+                  <th>AÑO</th>
+                  <th>GÉNERO</th>
+                </tr>
+              </thead>
+              <tbody id="dos-catalogo-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- BOTONERA INFERIOR DE ACCIONES (Main Shortcuts) -->
+    <div class="dos-bottom-panel">
+      <button class="dos-btn" id="btn-f2-alquilar"><span class="key">[ F2 ]</span> Alquilar</button>
+      <button class="dos-btn" id="btn-f3-auditar"><span class="key">[ F3 ]</span> Auditar SHA-256</button>
+      <button class="dos-btn" id="btn-f4-devolver"><span class="key">[ F4 ]</span> Devolución</button>
+      <button class="dos-btn" id="btn-f5-reparar" style="display:none;"><span class="key">[ F5 ]</span> Auto-Reparar</button>
+      <button class="dos-btn" id="btn-f6-generar"><span class="key">[ F6 ]</span> Generar USB</button>
+      <button class="dos-btn" id="btn-f9-crt"><span class="key">[ F9 ]</span> CRT FX: ON</button>
+    </div>
+
+    <!-- MODAL: REGISTRAR ALQUILER -->
+    <div class="dos-modal-overlay" id="modal-alquilar">
+      <div class="dos-modal-dialog">
+        <div class="dos-modal-header">╔════════ REGISTRAR SALIDA / ALQUILER ════════╗</div>
+        <div class="dos-modal-body">
+          <p>Pendrive a Entregar: <strong id="dos-modal-usb-id" style="color:var(--dos-green-bright);">--</strong></p>
+          <br>
+          <div class="dos-input-group">
+            <label>Seleccionar Socio PAT:</label>
+            <select class="dos-select" id="dos-modal-socio-select"></select>
+          </div>
+        </div>
+        <div class="dos-modal-footer">
+          <button class="dos-btn" id="btn-cancel-alquilar">[ Esc ] Cancelar</button>
+          <button class="dos-btn" id="btn-confirm-alquilar"><span class="key">[ Enter ]</span> Confirmar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: NUEVO SOCIO -->
+    <div class="dos-modal-overlay" id="modal-socio">
+      <div class="dos-modal-dialog">
+        <div class="dos-modal-header">╔════════ REGISTRAR NUEVO SOCIO PAT ════════╗</div>
+        <div class="dos-modal-body">
+          <div class="dos-input-group">
+            <label>Nombre y Apellido:</label>
+            <input type="text" class="dos-input" id="inp-socio-nombre">
+          </div>
+          <div class="dos-input-group">
+            <label>Teléfono de Contacto:</label>
+            <input type="text" class="dos-input" id="inp-socio-tel">
+          </div>
+        </div>
+        <div class="dos-modal-footer">
+          <button class="dos-btn" id="btn-cancel-socio">[ Esc ] Cancelar</button>
+          <button class="dos-btn" id="btn-confirm-socio"><span class="key">[ Enter ]</span> Guardar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: NUEVO EVENTO -->
+    <div class="dos-modal-overlay" id="modal-evento">
+      <div class="dos-modal-dialog">
+        <div class="dos-modal-header">╔════════ CREAR NUEVO EVENTO ════════╗</div>
+        <div class="dos-modal-body">
+          <div class="dos-input-group">
+            <label>Nombre del Evento:</label>
+            <input type="text" class="dos-input" id="inp-evt-nombre" placeholder="Ej. Muestra Cine Bariloche">
+          </div>
+          <div class="dos-input-group">
+            <label>Lugar / Dirección:</label>
+            <input type="text" class="dos-input" id="inp-evt-lugar">
+          </div>
+        </div>
+        <div class="dos-modal-footer">
+          <button class="dos-btn" id="btn-cancel-evento">[ Esc ] Cancelar</button>
+          <button class="dos-btn" id="btn-confirm-evento"><span class="key">[ Enter ]</span> Crear</button>
+        </div>
+      </div>
+    <!-- BARRA DE ESTADO INFERIOR MS-DOS -->
+    <div class="dos-status-bar">
+      <span>F10=Acciones  F2=Alquilar  F3=Auditar  F5=Eventos  Shift+F9=CMD</span>
+      <span id="dos-clock">00:00:00</span>
+    </div>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

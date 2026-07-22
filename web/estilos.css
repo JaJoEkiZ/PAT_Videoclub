@@ -1,0 +1,458 @@
+/* ==========================================================================
+   V I D E O C L Ú   P U T R E F A C T O R   A   T O R S I Ó N
+   Estilo MS-DOS Shell / BIOS Setup Utility (Monochrome Green Phosphor TUI)
+   Monitor CRT Retro con Relación de Aspecto 4:3 Restringida
+   ========================================================================== */
+
+@font-face {
+  font-family: 'VCR OSD Mono';
+  src: url('fonts/vcr-osd-mono.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  src: url('fonts/jetbrains-mono-400-normal.woff2') format('woff2');
+}
+
+:root {
+  --dos-bg: #000000;
+  --dos-green: #00FF33;
+  --dos-green-bright: #33FF66;
+  --dos-green-dim: #008822;
+  --dos-green-dark: #003300;
+  --dos-green-bg-invert: #00FF33;
+  --dos-text-invert: #000000;
+  --font-dos: 'VCR OSD Mono', 'JetBrains Mono', monospace;
+  --glow-dos: 0 0 5px rgba(0, 255, 51, 0.6);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+}
+
+body {
+  background-color: #050505;
+  color: var(--dos-green);
+  font-family: var(--font-dos);
+  font-size: 12px;
+  line-height: 1.2;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-shadow: var(--glow-dos);
+}
+
+/* --------------------------------------------------------------------------
+   MARCO CRT Y ASPECT RATIO STRICTO 4:3
+   -------------------------------------------------------------------------- */
+.dos-shell-wrapper {
+  /* Forzar aspecto 4:3 ajustado al tamaño de la pantalla */
+  aspect-ratio: 4 / 3;
+  width: min(96vw, 94vh * (4 / 3));
+  height: min(94vh, 96vw * (3 / 4));
+  background-color: var(--dos-bg);
+  border: 4px solid #1a1a1a;
+  border-radius: 8px;
+  box-shadow: 0 0 40px rgba(0, 255, 51, 0.15), inset 0 0 20px rgba(0, 0, 0, 0.9);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+/* --------------------------------------------------------------------------
+   EFECTOS CRT SUPERPUESTOS (Restringidos a la pantalla 4:3)
+   -------------------------------------------------------------------------- */
+.crt-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 999;
+}
+
+.scanlines {
+  background: linear-gradient(rgba(0, 0, 0, 0) 50%, rgba(0, 30, 0, 0.35) 50%);
+  background-size: 100% 4px;
+}
+
+.flicker {
+  background-color: rgba(0, 255, 51, 0.005);
+  animation: dos-flicker 0.15s infinite;
+}
+
+@keyframes dos-flicker {
+  0% { opacity: 0.97; }
+  50% { opacity: 1; }
+  100% { opacity: 0.98; }
+}
+
+.glass-reflection {
+  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.9);
+}
+
+.crt-static {
+  mix-blend-mode: screen;
+  opacity: 0.02;
+}
+
+/* Reglas para Desactivar Efectos CRT */
+body.crt-disabled .crt-overlay {
+  display: none !important;
+}
+
+body.crt-disabled,
+body.crt-disabled * {
+  text-shadow: none !important;
+}
+
+body.crt-disabled .dos-shell-wrapper {
+  box-shadow: 0 0 10px rgba(0, 255, 51, 0.1) !important;
+  border-color: #333 !important;
+}
+
+/* --------------------------------------------------------------------------
+   COMPONENTES MS-DOS SHELL DENTRO DE 4:3
+   -------------------------------------------------------------------------- */
+
+/* Title Bar */
+.dos-title-bar {
+  background-color: var(--dos-green-bg-invert);
+  color: var(--dos-text-invert);
+  text-align: center;
+  font-weight: bold;
+  padding: 3px 0;
+  letter-spacing: 1px;
+  text-shadow: none;
+  font-size: 12px;
+}
+
+/* Menu Bar */
+.dos-menu-bar {
+  display: flex;
+  background-color: var(--dos-bg);
+  border-bottom: 1px solid var(--dos-green);
+  padding: 2px 6px;
+  gap: 12px;
+  font-size: 11px;
+}
+
+.dos-menu-item {
+  color: var(--dos-green);
+  cursor: pointer;
+  padding: 1px 4px;
+}
+
+.dos-menu-item:hover, .dos-menu-item.active {
+  background-color: var(--dos-green-bg-invert);
+  color: var(--dos-text-invert);
+  text-shadow: none;
+}
+
+/* Drives Bar */
+.dos-drives-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 2px 6px;
+  border-bottom: 1px solid var(--dos-green);
+  font-size: 11px;
+}
+
+.dos-drive-btn {
+  background: none;
+  border: none;
+  color: var(--dos-green);
+  font-family: var(--font-dos);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 1px 4px;
+}
+
+.dos-drive-btn:hover, .dos-drive-btn.active {
+  background-color: var(--dos-green-bg-invert);
+  color: var(--dos-text-invert);
+  text-shadow: none;
+}
+
+/* Main Split View */
+.dos-split-container {
+  display: flex;
+  flex: 1;
+  gap: 4px;
+  margin: 3px;
+  overflow: hidden;
+}
+
+/* Left Pane */
+.dos-pane-left {
+  width: 38%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Right Pane */
+.dos-pane-right {
+  width: 62%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* DOS Box / Frame */
+.dos-box {
+  border: 1px solid var(--dos-green);
+  display: flex;
+  flex-direction: column;
+  background-color: var(--dos-bg);
+  position: relative;
+  overflow: hidden;
+}
+
+.dos-box-header {
+  background-color: var(--dos-bg);
+  border-bottom: 1px solid var(--dos-green);
+  padding: 2px 6px;
+  color: var(--dos-green-bright);
+  font-weight: bold;
+  font-size: 11px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.dos-box-header.invert {
+  background-color: var(--dos-green-bg-invert);
+  color: var(--dos-text-invert);
+  text-shadow: none;
+}
+
+.dos-box-body {
+  padding: 4px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* Scrollbar retro estilizada */
+.dos-box-body::-webkit-scrollbar { width: 8px; }
+.dos-box-body::-webkit-scrollbar-track { background: var(--dos-bg); border-left: 1px solid var(--dos-green); }
+.dos-box-body::-webkit-scrollbar-thumb { background: var(--dos-green); }
+
+/* Directory Tree View */
+.dos-tree-list {
+  list-style: none;
+  font-size: 11px;
+}
+
+.dos-tree-item {
+  padding: 2px 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dos-tree-item:hover, .dos-tree-item.selected {
+  background-color: var(--dos-green-bg-invert);
+  color: var(--dos-text-invert);
+  text-shadow: none;
+}
+
+/* Info Table */
+.dos-info-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10.5px;
+}
+
+.dos-info-table td {
+  padding: 2px 3px;
+}
+
+.dos-info-table td.label {
+  color: var(--dos-green-dim);
+  width: 42%;
+}
+
+.dos-info-table td.val {
+  color: var(--dos-green-bright);
+  font-weight: bold;
+}
+
+.dos-info-table td.val.highlight {
+  background-color: var(--dos-green-bg-invert);
+  color: var(--dos-text-invert);
+  text-shadow: none;
+}
+
+/* File Table */
+.dos-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.dos-table th {
+  border-bottom: 1px solid var(--dos-green);
+  padding: 3px 4px;
+  text-align: left;
+  color: var(--dos-green-bright);
+  position: sticky;
+  top: 0;
+  background-color: var(--dos-bg);
+}
+
+.dos-table td {
+  padding: 2px 4px;
+}
+
+.dos-table tr:hover td {
+  background-color: var(--dos-green-bg-invert);
+  color: var(--dos-text-invert);
+  text-shadow: none;
+}
+
+.tag-ok { color: var(--dos-green-bright); }
+.tag-alt { background-color: var(--dos-green-bg-invert); color: var(--dos-text-invert); font-weight: bold; text-shadow: none; }
+.tag-mis { color: #FFFF00; }
+.tag-unk { color: var(--dos-green-dim); }
+
+/* Bottom Action Bar */
+.dos-bottom-panel {
+  border-top: 1px solid var(--dos-green);
+  padding: 3px 4px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  background-color: var(--dos-bg);
+}
+
+.dos-btn {
+  background-color: var(--dos-bg);
+  border: 1px solid var(--dos-green);
+  color: var(--dos-green);
+  font-family: var(--font-dos);
+  font-size: 11px;
+  padding: 2px 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dos-btn:hover {
+  background-color: var(--dos-green-bg-invert);
+  color: var(--dos-text-invert);
+  text-shadow: none;
+}
+
+.dos-btn .key {
+  color: var(--dos-green-bright);
+  font-weight: bold;
+}
+
+.dos-btn:hover .key {
+  color: var(--dos-text-invert);
+}
+
+/* Status Bar at Bottom */
+.dos-status-bar {
+  background-color: var(--dos-green-bg-invert);
+  color: var(--dos-text-invert);
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 6px;
+  font-size: 11px;
+  font-weight: bold;
+  text-shadow: none;
+}
+
+/* Modals / Dialogs */
+.dos-modal-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.dos-modal-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.dos-modal-dialog {
+  border: 2px solid var(--dos-green);
+  background-color: var(--dos-bg);
+  width: 85%;
+  max-width: 440px;
+  box-shadow: 0 0 20px rgba(0, 255, 51, 0.4);
+}
+
+.dos-modal-header {
+  background-color: var(--dos-green-bg-invert);
+  color: var(--dos-text-invert);
+  padding: 3px 6px;
+  font-weight: bold;
+  text-align: center;
+  text-shadow: none;
+  font-size: 11px;
+}
+
+.dos-modal-body {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dos-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.dos-input-group label {
+  font-size: 10px;
+  color: var(--dos-green-dim);
+}
+
+.dos-input, .dos-select {
+  background-color: var(--dos-bg);
+  border: 1px solid var(--dos-green);
+  color: var(--dos-green-bright);
+  font-family: var(--font-dos);
+  font-size: 11px;
+  padding: 3px 6px;
+  outline: none;
+}
+
+.dos-input:focus, .dos-select:focus {
+  background-color: var(--dos-green-dark);
+  border-color: var(--dos-green-bright);
+}
+
+.dos-modal-footer {
+  border-top: 1px solid var(--dos-green);
+  padding: 6px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
