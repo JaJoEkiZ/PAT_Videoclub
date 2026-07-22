@@ -486,8 +486,99 @@ class ControlStationRequestHandler(SimpleHTTPRequestHandler):
 
             self.send_json({"status": "OK", "id": evt_id, "nombre_evento": nombre})
 
-        else:
-            self.send_json({"error": "Endpoint POST desconocido"}, status=404)
+        elif path == '/api/add-pelicula':
+            titulo = body.get('titulo', '').strip()
+            director = body.get('director', '').strip() or "Videoclú Putrefactor A Torsión"
+            anio = body.get('anio', 2026)
+            genero = body.get('genero', 'Cine Patagónico').strip()
+            duracion = body.get('duracion', '1h 30min').strip()
+            sinopsis = body.get('sinopsis', '').strip()
+            
+            video_path = body.get('video_path', '').strip()
+            srt_path = body.get('srt_path', '').strip()
+            cover_path = body.get('cover_path', '').strip()
+
+            if not titulo:
+                self.send_json({"error": "El título es obligatorio"}, status=400)
+                return
+
+            if not video_path or not os.path.exists(video_path):
+                self.send_json({"error": f"Archivo de video no encontrado en: {video_path}"}, status=400)
+                return
+
+            # Crear carpeta sanitizada en el Catálogo
+            folder_name = "".join([c for c in titulo if c.isalnum() or c in (' ', '_', '-')]).strip().replace(' ', '_').upper()
+            if not folder_name:
+                folder_name = f"PELI_{int(time.time())}"
+
+            target_master_dir = CATALOGO_DIR / folder_name
+            template_dir = CATALOGO_DIR / "VIENTO_LIMAY"
+
+            if not template_dir.exists():
+                self.send_json({"error": "No existe la plantilla base en el catálogo"}, status=500)
+                return
+
+            # 1. Copiar estructura base
+            if target_master_dir.exists():
+                shutil.rmtree(target_master_dir)
+            shutil.copytree(template_dir, target_master_dir)
+
+            # 2. Reemplazar Archivos Multimedia del Usuario
+            shutil.copy2(video_path, target_master_dir / "Pelicula_Regional.mp4")
+
+            if srt_path and os.path.exists(srt_path):
+                shutil.copy2(srt_path, target_master_dir / "Pelicula_Regional.srt")
+
+            if cover_path and os.path.exists(cover_path):
+                shutil.copy2(cover_path, target_master_dir / "datos" / "portada.png")
+
+            # 3. Construir metadata.json
+            meta = {
+                "titulo": titulo,
+                "director": director,
+                "anio": int(anio) if str(anio).isdigit() else 2026,
+                "duracion": duracion,
+                "genero": genero,
+                "sinopsis": sinopsis or "Sin sinopsis registrada.",
+                "region": "Patagonia Argentina",
+                "idioma": "Español",
+                "subtitulos": "Español (SRT)",
+                "archivo_video": "Pelicula_Regional.mp4",
+                "archivo_subtitulos": "Pelicula_Regional.srt",
+                "archivo_portada": "datos/portada.png"
+            }
+
+            # 4. Calcular hashes iniciales
+            hashes = generate_directory_hashes(target_master_dir)
+            meta['hashes'] = hashes
+
+            # 5. Escribir metadata.json y metadata.js en la carpeta máster
+            meta_json = target_master_dir / "datos" / "metadata.json"
+            meta_js = target_master_dir / "datos" / "metadata.js"
+
+            with open(meta_json, 'w', encoding='utf-8') as f:
+                json.dump(meta, f, ensure_ascii=False, indent=2)
+
+            js_content = f"window.VideotecaMetadata = {json.dumps(meta, ensure_ascii=False, indent=2)};"
+            with open(meta_js, 'w', encoding='utf-8') as f:
+                f.write(js_content)
+
+            # 6. Registrar en la Base de Datos SQLite
+            codigo_pelicula = f"PAT-{int(time.time()) % 10000:04d}"
+            with db.get_conn() as conn:
+                cur = conn.cursor()
+                cur.execute('''
+                    INSERT INTO peliculas (codigo_pelicula, titulo, director, anio, genero, duracion)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ''', (codigo_pelicula, titulo, director, meta['anio'], genero, duracion))
+                conn.commit()
+
+            self.send_json({
+                "status": "OK",
+                "codigo_pelicula": codigo_pelicula,
+                "titulo": titulo,
+                "folder_name": folder_name
+            })
 
 # =============================================================================
 # LANZADOR DEL SERVIDOR HTTP

@@ -314,20 +314,33 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   const dosCatalogoTbody = document.getElementById('dos-catalogo-tbody');
+  const genPeliculaSelect = document.getElementById('gen-pelicula');
+
   async function loadCatalogo() {
     try {
       const res = await fetch('/api/peliculas');
       const pelis = await res.json();
       dosCatalogoTbody.innerHTML = '';
+      if (genPeliculaSelect) genPeliculaSelect.innerHTML = '';
+
       pelis.forEach(p => {
         const tr = document.createElement('tr');
         tr.innerHTML = `<td>${p.codigo_pelicula}</td><td>${p.titulo}</td><td>${p.director}</td><td>${p.anio}</td><td>${p.genero}</td>`;
         dosCatalogoTbody.appendChild(tr);
+
+        if (genPeliculaSelect) {
+          const opt = document.createElement('option');
+          // Limpiar título para nombre de carpeta
+          const folderName = "".replace ? p.titulo.replace(/[^a-zA-Z0-9 _-]/g, "").trim().replace(/\s+/g, "_").toUpperCase() : p.titulo;
+          opt.value = folderName || 'VIENTO_LIMAY';
+          opt.textContent = `${p.titulo} (${p.anio}) -- ${p.director}`;
+          genPeliculaSelect.appendChild(opt);
+        }
       });
     } catch (e) {}
   }
 
-  // Modales Socio y Evento
+  // Modales Socio, Evento y Película
   const modalSocio = document.getElementById('modal-socio');
   document.getElementById('btn-dos-add-socio').addEventListener('click', () => modalSocio.classList.add('active'));
   document.getElementById('btn-cancel-socio').addEventListener('click', () => modalSocio.classList.remove('active'));
@@ -365,8 +378,81 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  const modalPelicula = document.getElementById('modal-pelicula');
+  document.getElementById('btn-dos-add-pelicula').addEventListener('click', () => modalPelicula.classList.add('active'));
+  document.getElementById('btn-cancel-pelicula').addEventListener('click', () => modalPelicula.classList.remove('active'));
+
+  document.getElementById('btn-confirm-pelicula').addEventListener('click', async () => {
+    const titulo = document.getElementById('inp-peli-titulo').value.trim();
+    const director = document.getElementById('inp-peli-director').value.trim();
+    const anio = document.getElementById('inp-peli-anio').value.trim();
+    const genero = document.getElementById('inp-peli-genero').value.trim();
+    const duracion = document.getElementById('inp-peli-duracion').value.trim();
+    const videoPath = document.getElementById('inp-peli-video-path').value.trim();
+    const srtPath = document.getElementById('inp-peli-srt-path').value.trim();
+    const coverPath = document.getElementById('inp-peli-cover-path').value.trim();
+
+    if (!titulo || !videoPath) {
+      alert("Por favor ingrese al menos el Título y la Ruta al Archivo de Video.");
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/add-pelicula', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          titulo, director, anio, genero, duracion,
+          video_path: videoPath,
+          srt_path: srtPath,
+          cover_path: coverPath
+        })
+      });
+      const data = await res.json();
+      if (data.error) {
+        alert("ERROR: " + data.error);
+      } else {
+        alert(`🎉 Obra '${data.titulo}' registrada con éxito. Código: ${data.codigo_pelicula}`);
+        modalPelicula.classList.remove('active');
+        loadCatalogo();
+      }
+    } catch (e) {
+      alert("Error enviando datos al servidor.");
+    }
+  });
+
   // --------------------------------------------------------------------------
-  // 10. ATAJOS DE TECLADO RETRO (F2, F3, F4, F5, F6)
+  // 10. BOTÓN Y LÓGICA DE APAGADO/ENCENDIDO DE EFECTOS CRT (F9)
+  // --------------------------------------------------------------------------
+  const btnToggleCrtTop = document.getElementById('btn-toggle-crt-top');
+  const btnF9Crt = document.getElementById('btn-f9-crt');
+  let crtEnabled = localStorage.getItem('pat_crt_effect') !== 'off';
+
+  function applyCrtState() {
+    if (crtEnabled) {
+      document.body.classList.remove('crt-disabled');
+      if (btnToggleCrtTop) btnToggleCrtTop.textContent = '[ CRT FX: ON ]';
+      if (btnF9Crt) btnF9Crt.innerHTML = '<span class="key">[ F9 ]</span> CRT FX: ON';
+      localStorage.setItem('pat_crt_effect', 'on');
+    } else {
+      document.body.classList.add('crt-disabled');
+      if (btnToggleCrtTop) btnToggleCrtTop.textContent = '[ CRT FX: OFF ]';
+      if (btnF9Crt) btnF9Crt.innerHTML = '<span class="key">[ F9 ]</span> CRT FX: OFF';
+      localStorage.setItem('pat_crt_effect', 'off');
+    }
+  }
+
+  function toggleCrt() {
+    crtEnabled = !crtEnabled;
+    applyCrtState();
+  }
+
+  if (btnToggleCrtTop) btnToggleCrtTop.addEventListener('click', toggleCrt);
+  if (btnF9Crt) btnF9Crt.addEventListener('click', toggleCrt);
+  applyCrtState();
+
+  // --------------------------------------------------------------------------
+  // 11. ATAJOS DE TECLADO RETRO (F2, F3, F4, F5, F6, F9)
   // --------------------------------------------------------------------------
   window.addEventListener('keydown', (e) => {
     if (e.key === 'F2') { e.preventDefault(); btnF2Alquilar.click(); }
@@ -374,6 +460,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.key === 'F4') { e.preventDefault(); btnF4Devolver.click(); }
     if (e.key === 'F5') { e.preventDefault(); showView('generador'); }
     if (e.key === 'F6') { e.preventDefault(); showView('socios'); }
+    if (e.key === 'F9') { e.preventDefault(); toggleCrt(); }
   });
 
 });

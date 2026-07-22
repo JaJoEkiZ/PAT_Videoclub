@@ -203,6 +203,7 @@
         <div class="dos-box view-pane" id="pane-catalogo" style="flex: 1; display: none;">
           <div class="dos-box-header">
             <span>Catálogo Máster PAT</span>
+            <button class="dos-btn" id="btn-dos-add-pelicula" style="padding: 1px 6px;">[ + Nueva Película Máster ]</button>
           </div>
           <div class="dos-box-body" style="padding: 0;">
             <table class="dos-table">
@@ -293,6 +294,54 @@
           <button class="dos-btn" id="btn-confirm-evento"><span class="key">[ Enter ]</span> Crear</button>
         </div>
       </div>
+    </div>
+    <!-- MODAL: NUEVA PELÍCULA MÁSTER -->
+    <div class="dos-modal-overlay" id="modal-pelicula">
+      <div class="dos-modal-dialog" style="max-width: 500px;">
+        <div class="dos-modal-header">╔════════ ALTA DE NUEVA PELÍCULA MÁSTER ════════╗</div>
+        <div class="dos-modal-body">
+          <div class="dos-input-group">
+            <label>Título de la Obra:</label>
+            <input type="text" class="dos-input" id="inp-peli-titulo" placeholder="Ej. La Estepa Infinita">
+          </div>
+          <div class="dos-input-group">
+            <label>Director / Realizador:</label>
+            <input type="text" class="dos-input" id="inp-peli-director" value="Videoclú Putrefactor A Torsión">
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <div class="dos-input-group" style="flex: 1;">
+              <label>Año:</label>
+              <input type="text" class="dos-input" id="inp-peli-anio" placeholder="1996">
+            </div>
+            <div class="dos-input-group" style="flex: 1;">
+              <label>Género:</label>
+              <input type="text" class="dos-input" id="inp-peli-genero" placeholder="Documental / Noir">
+            </div>
+            <div class="dos-input-group" style="flex: 1;">
+              <label>Duración:</label>
+              <input type="text" class="dos-input" id="inp-peli-duracion" placeholder="1h 15min">
+            </div>
+          </div>
+          <div class="dos-input-group">
+            <label>Ruta al Archivo de Video (.mp4 / .mkv):</label>
+            <input type="text" class="dos-input" id="inp-peli-video-path" placeholder="C:\Videos\LaEstepa.mp4">
+          </div>
+          <div class="dos-input-group">
+            <label>Ruta al Archivo de Subtítulos (.srt):</label>
+            <input type="text" class="dos-input" id="inp-peli-srt-path" placeholder="C:\Videos\subtitulos.srt">
+          </div>
+          <div class="dos-input-group">
+            <label>Ruta a la Imagen de Portada (.png / .jpg):</label>
+            <input type="text" class="dos-input" id="inp-peli-cover-path" placeholder="C:\Videos\portada.jpg">
+          </div>
+        </div>
+        <div class="dos-modal-footer">
+          <button class="dos-btn" id="btn-cancel-pelicula">[ Esc ] Cancelar</button>
+          <button class="dos-btn" id="btn-confirm-pelicula"><span class="key">[ Enter ]</span> Procesar Máster</button>
+        </div>
+      </div>
+    </div>
+
     <!-- BARRA DE ESTADO INFERIOR MS-DOS -->
     <div class="dos-status-bar">
       <span>F10=Acciones  F2=Alquilar  F3=Auditar  F5=Eventos  Shift+F9=CMD</span>
