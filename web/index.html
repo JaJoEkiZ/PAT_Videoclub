@@ -342,6 +342,34 @@
       </div>
     </div>
 
+    <!-- MODAL: PROGRESO DE GRABACIÓN DE USB -->
+    <div class="dos-modal-overlay" id="modal-progress-usb">
+      <div class="dos-modal-dialog" style="max-width: 540px;">
+        <div class="dos-modal-header" id="modal-progress-title">╔════════ GRABANDO Y FIRMANDO PENDRIVE USB ════════╗</div>
+        <div class="dos-modal-body" style="padding: 16px;">
+          <p id="progress-status-step" style="color: var(--dos-green); font-weight: bold; margin-bottom: 8px;">
+            [1/5] Inicializando grabadora USB...
+          </p>
+          
+          <!-- Barra de Progreso MS-DOS -->
+          <div style="border: 2px solid var(--dos-green); padding: 3px; background: #000; margin: 12px 0;">
+            <div id="progress-bar-fill" style="width: 0%; height: 20px; background: var(--dos-green); transition: width 0.3s ease;"></div>
+          </div>
+          <div style="display: flex; justify-content: space-between; font-size: 12px; color: #aaa;">
+            <span id="progress-detail">Unidad: --</span>
+            <span id="progress-percent" style="color: var(--dos-green); font-weight: bold;">0%</span>
+          </div>
+
+          <div id="progress-log" style="text-align: left; background: #040e04; border: 1px solid #1a4d1a; padding: 8px; margin-top: 12px; font-size: 11px; height: 80px; overflow-y: auto; color: #33ff33; font-family: monospace; line-height: 1.4;">
+            > Iniciando proceso de clonado y firmado SHA-256...
+          </div>
+        </div>
+        <div class="dos-modal-footer" id="modal-progress-footer" style="justify-content: center;">
+          <button class="dos-btn" id="btn-close-progress" style="display: none;">[ Enter ] Aceptar y Continuar</button>
+        </div>
+      </div>
+    </div>
+
     <!-- BARRA DE ESTADO INFERIOR MS-DOS -->
     <div class="dos-status-bar">
       <span>F10=Acciones  F2=Alquilar  F3=Auditar  F5=Eventos  Shift+F9=CMD</span>

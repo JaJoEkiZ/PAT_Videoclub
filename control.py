@@ -138,6 +138,18 @@ class DatabaseManager:
 # =============================================================================
 # 2. MOTOR CRIPTOGRÁFICO DE HASHES (SHA-256)
 # =============================================================================
+def read_text_smart(file_path):
+    path = Path(file_path)
+    if not path or not path.exists():
+        return ""
+    raw_bytes = path.read_bytes()
+    for enc in ['utf-8-sig', 'utf-8', 'cp1252', 'latin-1', 'iso-8859-1']:
+        try:
+            return raw_bytes.decode(enc)
+        except UnicodeDecodeError:
+            continue
+    return raw_bytes.decode('utf-8', errors='replace')
+
 class HashEngine:
     @staticmethod
     def calculate_file_hash(filepath):
@@ -153,23 +165,24 @@ class HashEngine:
     @staticmethod
     def generate_directory_hashes(root_dir, ignore_dirs=None):
         if ignore_dirs is None:
-            ignore_dirs = {'.git', '__pycache__', 'System Volume Information', '$RECYCLE.BIN'}
+            ignore_dirs = {'.git', '__pycache__', 'System Volume Information', '$RECYCLE.BIN', 'Peli-Usb'}
+        ignore_exts = {'.psd', '.db', '.pyc', '.tmp'}
+        ignore_files = {'thumbs.db', 'desktop.ini', 'metadata.json', 'metadata.js'}
         
         hashes = {}
         root_path = Path(root_dir)
 
         for file_path in root_path.rglob('*'):
             if file_path.is_file():
-                if any(part in ignore_dirs for part in file_path.parts):
+                rel = file_path.relative_to(root_path)
+                if any(part in ignore_dirs for part in rel.parts[:-1]):
                     continue
-                # Ignorar archivos temporales o del SO
-                if file_path.name.lower() in {'thumbs.db', 'desktop.ini'}:
+                if file_path.name.lower() in ignore_files or file_path.suffix.lower() in ignore_exts:
                     continue
                 
-                rel_path = file_path.relative_to(root_path).as_posix()
                 file_hash = HashEngine.calculate_file_hash(file_path)
                 if file_hash:
-                    hashes[rel_path] = file_hash
+                    hashes[rel.as_posix()] = file_hash
         return hashes
 
 # =============================================================================
@@ -458,7 +471,28 @@ class ControlStationApp:
 
     def restaurar_pendrive(self, drive_path, titulo, altered_files, missing_files, unknown_files):
         print_neon("\n === RESTAURANDO PENDRIVE DESDE MÁSTER ===", Colors.CYAN, bold=True)
-        master_folder = self.catalogo_dir / "VIENTO_LIMAY"
+        master_folder = None
+        if titulo:
+            sanitized = "".join([c for c in titulo if c.isalnum() or c in (' ', '_', '-')]).strip().replace(' ', '_').upper()
+            if (self.catalogo_dir / sanitized).exists():
+                master_folder = self.catalogo_dir / sanitized
+            else:
+                for folder in self.catalogo_dir.iterdir():
+                    if folder.is_dir():
+                        m_file = folder / "datos" / "metadata.json"
+                        if m_file.exists():
+                            try:
+                                with open(m_file, 'r', encoding='utf-8') as f:
+                                    mdata = json.load(f)
+                                    if mdata.get('titulo', '').lower() == titulo.lower():
+                                        master_folder = folder
+                                        break
+                            except Exception:
+                                pass
+
+        if not master_folder or not master_folder.exists():
+            folders = [f for f in self.catalogo_dir.iterdir() if f.is_dir()]
+            master_folder = folders[0] if folders else (self.catalogo_dir / "VIENTO_LIMAY")
         
         if not master_folder.exists():
             print_neon(" [ERROR] No se encuentra la carpeta máster en el catálogo.", Colors.RED)
@@ -508,21 +542,47 @@ class ControlStationApp:
             except ValueError:
                 pass
 
+        # Seleccionar película máster a grabar desde la Base de Datos SQLite
+        print_neon("\n --- SELECCIÓN DE PELÍCULA MÁSTER ---", Colors.GREEN)
+        with self.db.get_connection() as conn:
+            pelis = conn.execute("SELECT * FROM peliculas ORDER BY id ASC").fetchall()
+        
+        if not pelis:
+            print_neon(" [ERROR] No existen películas registradas en la base de datos.", Colors.RED)
+            input("\n Presione Enter...")
+            return
+
+        for idx, p in enumerate(pelis):
+            print(f" [{idx+1}] {Colors.CYAN}{p['codigo_pelicula']}{Colors.RESET} - {Colors.BRIGHT_GREEN}{p['titulo']}{Colors.RESET} ({p['anio']}) [{p['director']}]")
+
+        try:
+            sel_peli = int(input(f"\n Seleccione película a grabar [1-{len(pelis)}]: ")) - 1
+            if 0 <= sel_peli < len(pelis):
+                peli_data = dict(pelis[sel_peli])
+            else:
+                peli_data = dict(pelis[0])
+        except ValueError:
+            peli_data = dict(pelis[0])
+
         id_usb = input(f"\n Ingrese Identificador Único para el Pendrive (ej. USB-002): ").strip()
         if not id_usb:
             id_usb = f"USB-{int(time.time()) % 1000:03d}"
 
-        master_source = self.catalogo_dir / "VIENTO_LIMAY"
-        if not master_source.exists():
-            print_neon(" [ERROR] No existe el catálogo máster de la película.", Colors.RED)
+        target = Path(self.active_drive_path)
+        print_neon(f"\n Copiando película '{peli_data['titulo']}' hacia {target}...", Colors.AMBER)
+        
+        # 1. Copiar estructura base desde plantilla_usb/
+        plantilla_dir = Path(__file__).parent.resolve() / "plantilla_usb"
+        if not plantilla_dir.exists():
+            print_neon(" [ERROR] No existe la carpeta plantilla_usb en el sistema.", Colors.RED)
             input("\n Presione Enter...")
             return
 
-        target = Path(self.active_drive_path)
-        print_neon(f"\n Copiando estructura base y película hacia {target}...", Colors.AMBER)
-        
-        # Copiar todo el contenido máster
-        for item in master_source.iterdir():
+        target.mkdir(parents=True, exist_ok=True)
+        ignore_names = {'tv.psd', 'Peli-Usb', '.git', '__pycache__', 'thumbs.db'}
+        for item in plantilla_dir.iterdir():
+            if item.name in ignore_names or item.name.lower().endswith(('.psd', '.tmp')):
+                continue
             dst = target / item.name
             if item.is_dir():
                 if dst.exists():
@@ -530,32 +590,122 @@ class ControlStationApp:
                 shutil.copytree(item, dst)
             else:
                 shutil.copy2(item, dst)
-            print(f" {Colors.GREEN}[COPIADO]{Colors.RESET} {item.name}")
+            print(f" {Colors.GREEN}[PLANTILLA]{Colors.RESET} {item.name}")
 
-        # Calcular hashes SHA-256 del nuevo pendrive
-        print_neon("\n Generando firmas criptográficas SHA-256...", Colors.GRAY)
-        hashes = HashEngine.generate_directory_hashes(target)
+        # 2. Copiar archivos multimedia de la película desde DB / Catálogo
+        folder_name = peli_data.get('folder_name') or "".join([c for c in peli_data['titulo'] if c.isalnum() or c in (' ', '_', '-')]).strip().replace(' ', '_').upper()
+        movie_cat_dir = self.catalogo_dir / folder_name
 
-        # Actualizar metadata.json
+        script_dir = Path(__file__).parent.resolve()
+
+        def resolve_asset(path_str, fallback_extensions=None):
+            if path_str:
+                p = Path(path_str)
+                if p.is_absolute() and p.exists():
+                    return p
+                if (script_dir / p).exists():
+                    return (script_dir / p).resolve()
+                if (self.catalogo_dir / p).exists():
+                    return (self.catalogo_dir / p).resolve()
+
+            if movie_cat_dir.exists():
+                if fallback_extensions:
+                    for f in movie_cat_dir.iterdir():
+                        if f.is_file() and f.suffix.lower() in fallback_extensions:
+                            return f
+                    if (movie_cat_dir / "datos").exists():
+                        for f in (movie_cat_dir / "datos").iterdir():
+                            if f.is_file() and f.suffix.lower() in fallback_extensions:
+                                return f
+            return None
+
+        video_src = resolve_asset(peli_data.get('video_path'), ['.mp4', '.mkv', '.avi', '.mov'])
+        if not video_src or not video_src.exists():
+            print_neon(f" [ERROR] No se encontró el archivo de video para '{peli_data['titulo']}'.", Colors.RED)
+            input("\n Presione Enter...")
+            return
+
+        video_filename = video_src.name
+        shutil.copy2(video_src, target / video_filename)
+        print(f" {Colors.GREEN}[VIDEO OK]{Colors.RESET} {video_filename}")
+
+        # Copiar subtítulos (.srt) y extraer subtitulos_raw offline
+        srt_filename = ""
+        subtitulos_raw = ""
+        srt_src = resolve_asset(peli_data.get('srt_path'), ['.srt'])
+        if srt_src and srt_src.exists():
+            srt_filename = srt_src.name
+            shutil.copy2(srt_src, target / srt_filename)
+            subtitulos_raw = read_text_smart(srt_src)
+            print(f" {Colors.GREEN}[SUBTÍTULOS OK]{Colors.RESET} {srt_filename}")
+
+        # Copiar portada
+        cover_src = resolve_asset(peli_data.get('cover_path'), ['.png', '.jpg', '.jpeg'])
+        if cover_src and cover_src.exists():
+            (target / "datos").mkdir(parents=True, exist_ok=True)
+            shutil.copy2(cover_src, target / "datos" / "portada.png")
+            print(f" {Colors.GREEN}[PORTADA OK]{Colors.RESET} portada.png")
+
+        # 3. Leer ficha técnica de metadata.json si existe en catálogo
+        cat_meta_file = movie_cat_dir / "datos" / "metadata.json" if movie_cat_dir.exists() else None
+        cat_meta = {}
+        if cat_meta_file and cat_meta_file.exists():
+            try:
+                content = read_text_smart(cat_meta_file)
+                cat_meta = json.loads(content)
+            except Exception:
+                pass
+
+        if not subtitulos_raw:
+            subtitulos_raw = cat_meta.get('subtitulos_raw', '')
+
+        meta_data = {
+            "id_usb": id_usb,
+            "titulo": peli_data.get('titulo') or cat_meta.get('titulo', 'Obra Regional'),
+            "director": peli_data.get('director') or cat_meta.get('director', 'Videoclú Putrefactor A Torsión'),
+            "anio": peli_data.get('anio') or cat_meta.get('anio', 2026),
+            "duracion": peli_data.get('duracion') or cat_meta.get('duracion', '1h 30min'),
+            "genero": peli_data.get('genero') or cat_meta.get('genero', 'Cine Patagónico'),
+            "sinopsis": peli_data.get('sinopsis') or cat_meta.get('sinopsis', 'Sin sinopsis registrada.'),
+            "region": cat_meta.get('region', 'Patagonia Argentina'),
+            "idioma": cat_meta.get('idioma', 'Español'),
+            "subtitulos": cat_meta.get('subtitulos', 'Español (SRT)'),
+            "subtitulos_raw": subtitulos_raw,
+            "subtitulo": subtitulos_raw,
+            "bitacora": cat_meta.get('bitacora', []),
+            "archivo_video": video_filename,
+            "archivo_subtitulos": srt_filename,
+            "archivo_portada": "datos/portada.png"
+        }
+
+        # 4. Generar firmas criptográficas SHA-256 del nuevo pendrive
         metadata_json_path = target / "datos" / "metadata.json"
         metadata_js_path = target / "datos" / "metadata.js"
+        subtitulos_js_path = target / "datos" / "subtitulos.js"
+
+        (target / "datos").mkdir(parents=True, exist_ok=True)
         
-        with open(metadata_json_path, 'r', encoding='utf-8') as f:
-            meta_data = json.load(f)
+        sub_js_str = json.dumps(subtitulos_raw, ensure_ascii=False)
+        with open(subtitulos_js_path, 'w', encoding='utf-8') as f:
+            f.write(f"window.VideotecaSubtitulosRaw = {sub_js_str};\n"
+                    f"window.VideotecaSubtitulos = window.VideotecaSubtitulosRaw;\n"
+                    f"window.VideotecaSubtitulo = window.VideotecaSubtitulosRaw;\n")
 
-        meta_data['id_usb'] = id_usb
-        meta_data['hashes'] = hashes
-
-        # Escribir metadata.json actualizado
         with open(metadata_json_path, 'w', encoding='utf-8') as f:
             json.dump(meta_data, f, ensure_ascii=False, indent=2)
 
-        # Escribir metadata.js (para fallback de navegador offline)
+        print_neon("\n Generando firmas criptográficas SHA-256...", Colors.GRAY)
+        hashes = HashEngine.generate_directory_hashes(target)
+        meta_data['hashes'] = hashes
+
+        with open(metadata_json_path, 'w', encoding='utf-8') as f:
+            json.dump(meta_data, f, ensure_ascii=False, indent=2)
+
         js_content = f"window.VideotecaMetadata = {json.dumps(meta_data, ensure_ascii=False, indent=2)};"
         with open(metadata_js_path, 'w', encoding='utf-8') as f:
             f.write(js_content)
 
-        print_neon(f"\n 🎉 ¡PENDRIVE {id_usb} GENERADO EXITOSAMENTE Y SELLADO CON HASHES SHA-256!", Colors.BRIGHT_GREEN, bold=True)
+        print_neon(f"\n 🎉 ¡PENDRIVE {id_usb} DE '{peli_data['titulo']}' GENERADO EXITOSAMENTE Y SELLADO CON HASHES SHA-256!", Colors.BRIGHT_GREEN, bold=True)
         input("\n Presione Enter para continuar...")
 
     # -------------------------------------------------------------------------

@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Videoteca Regional — CRT TV</title>
+  <link rel="stylesheet" href="datos/estilos.css">
+</head>
+<body>
+  <div class="cabinet-wrapper">
+    
+    <!-- Título superior estilo Videoclú -->
+    <div class="vj-header">
+      <p class="eyebrow">Videoclú Putrefactor A Torsión // Archivo Audiovisual</p>
+      <h1>Videoteca Regional</h1>
+      <p class="vj-subtitle">Reproductor Analógico Virtual // Unidad Conectada</p>
+    </div>
+
+    <!-- Mueble del Televisor CRT -->
+    <div class="tv-cabinet" id="tv-cabinet">
+      <img src="datos/tv.png" alt="Televisor Retro CRT" class="tv-cabinet-img">
+
+      <!-- PANTALLA DEL TELEVISOR (Superpuesta sobre el tubo de imagen) -->
+      <div class="tv-screen crt-on" id="tv-screen">
+        
+        <!-- Efectos analógicos CRT (Scanlines, flicker, curvatura de vidrio, ruido y hum bar) -->
+        <div class="crt-overlay scanlines"></div>
+        <div class="crt-overlay flicker"></div>
+        <div class="crt-overlay glass-reflection"></div>
+        <div class="crt-overlay hum-bar"></div>
+        <canvas id="crt-static-canvas" class="crt-overlay crt-static"></canvas>
+        <div class="crt-off-dot" id="crt-off-dot"></div>
+
+        <!-- CARRUSEL DE CANALES (Diapositivas Horizontales) -->
+        <div class="carousel-container">
+          <div class="carousel-track" id="carousel-track">
+            
+            <!-- CANAL 1 (CH 1): PORTADA -->
+            <div class="slide" id="slide-ch1">
+              <div class="cover-slide-content">
+                <div class="ch-indicator">CH 01 // PORTADA</div>
+                <div class="cover-wrapper">
+                  <img src="datos/portada.png" alt="Portada de la Película" class="crt-cover-img">
+                  <!-- Sticker VHS retro -->
+                  <div class="crt-vhs-sticker">
+                    <p class="crt-sticker-title" id="sticker-title">Viento Limay</p>
+                    <div class="crt-sticker-meta">
+                      <span id="sticker-director">DIR: JAJO EKIZ</span>
+                      <span id="sticker-duration">84 MIN</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="crt-footer-tip">Sintonice CH 02 para reproducir cinta</div>
+              </div>
+            </div>
+
+            <!-- CANAL 2 (CH 2): REPRODUCTOR DE VIDEO -->
+            <div class="slide" id="slide-ch2">
+              <div class="video-slide-content">
+                <div class="ch-indicator">CH 02 // CINTA PLAY</div>
+                
+                <!-- Reproductor HTML5 -->
+                <div class="embed-player-container" id="embed-player-container">
+                  <video id="main-video" preload="metadata" playsinline controlsList="nodownload">
+                    Tu navegador no soporta video.
+                  </video>
+                  
+                  <!-- Overlay Retro CRT de Clic para Iniciar -->
+                  <div class="crt-play-overlay" id="crt-play-overlay">
+                    <div class="crt-play-card">
+                      <div class="crt-play-btn-circle">▶</div>
+                      <p class="crt-play-title">CINTA LISTA // HAGA CLIC PARA INICIAR</p>
+                      <p class="crt-play-sub">Videoclú Putrefactor A Torsión</p>
+                    </div>
+                  </div>
+                  
+                  <!-- Subtítulos Customizados renderizados vía JS -->
+                  <div class="crt-subtitles-overlay" id="subtitles-overlay">
+                    <span class="crt-subtitles-text" id="subtitles-text"></span>
+                  </div>
+
+                  <!-- Panel de ajustes flotante (oculto por defecto) -->
+                  <div class="subtitles-settings-menu" id="subtitles-settings-menu">
+                    <div class="menu-title">Ajustes Subtítulos</div>
+                    <div class="menu-section">
+                      <span class="menu-section-label">Color Texto</span>
+                      <div class="menu-options-grid">
+                        <button class="menu-opt color-opt active" data-color="yellow" style="color: #FFFF00;">■ Amarillo</button>
+                        <button class="menu-opt color-opt" data-color="white" style="color: #FFFFFF;">■ Blanco</button>
+                        <button class="menu-opt color-opt" data-color="green" style="color: #26DD30;">■ Verde</button>
+                        <button class="menu-opt color-opt" data-color="cyan" style="color: #00FFFF;">■ Cyan</button>
+                      </div>
+                    </div>
+                    <div class="menu-section">
+                      <span class="menu-section-label">Estilo Sombra</span>
+                      <div class="menu-options-grid">
+                        <button class="menu-opt style-opt active" data-style="outline">Borde Negro</button>
+                        <button class="menu-opt style-opt" data-style="box">Caja Fondo</button>
+                        <button class="menu-opt style-opt" data-style="shadow">Sombra Dura</button>
+                        <button class="menu-opt style-opt" data-style="none">Sin Sombra</button>
+                      </div>
+                    </div>
+                    <div class="menu-section">
+                      <span class="menu-section-label">Tipografía</span>
+                      <div class="menu-options-grid">
+                        <button class="menu-opt font-opt active" data-font="vcr">VCR Retro</button>
+                        <button class="menu-opt font-opt" data-font="arial">Arial Standard</button>
+                      </div>
+                    </div>
+                    <div class="menu-section">
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <span class="menu-section-label" style="margin-bottom: 0;">Tamaño Subtítulo</span>
+                        <span id="sub-size-label" style="font-family: var(--font-vcr); font-size: 11px; color: var(--accent);">100%</span>
+                      </div>
+                      <input type="range" class="osd-slider" id="sub-size-slider" min="50" max="200" step="10" value="100" style="width: 100%; flex-grow: 0;">
+                    </div>
+                    <div class="menu-section">
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <span class="menu-section-label" style="margin-bottom: 0;">Interlineado</span>
+                        <span id="sub-line-height-label" style="font-family: var(--font-vcr); font-size: 11px; color: var(--accent);">1.3x</span>
+                      </div>
+                      <input type="range" class="osd-slider" id="sub-line-height-slider" min="10" max="25" step="1" value="13" style="width: 100%; flex-grow: 0;">
+                    </div>
+                    <div class="menu-section">
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <span class="menu-section-label" style="margin-bottom: 0;">Altura en Pantalla</span>
+                        <span id="sub-pos-label" style="font-family: var(--font-vcr); font-size: 11px; color: var(--accent);">Estándar</span>
+                      </div>
+                      <input type="range" class="osd-slider" id="sub-pos-slider" min="-10" max="40" step="2" value="0" style="width: 100%; flex-grow: 0;">
+                    </div>
+                  </div>
+
+                  <!-- Controles en pantalla estilo OSD -->
+                  <div class="osd-controls" id="osd-controls">
+                    <button class="osd-btn" id="btn-play-pause" title="Play/Pausa">
+                      <svg viewBox="0 0 24 24" id="play-pause-icon">
+                        <path d="M8 5v14l11-7z"/>
+                      </svg>
+                    </button>
+                    <div class="osd-timeline">
+                      <span class="osd-time" id="current-time">00:00</span>
+                      <input type="range" class="osd-slider" id="progress-slider" min="0" max="100" value="0">
+                      <span class="osd-time" id="total-time">00:00</span>
+                    </div>
+                    <div class="osd-volume-group" style="display: flex; align-items: center; gap: 6px;">
+                      <button class="osd-btn" id="btn-mute" title="Silenciar">
+                        <svg viewBox="0 0 24 24" id="volume-icon">
+                          <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>
+                        </svg>
+                      </button>
+                      <input type="range" class="osd-slider" id="osd-volume-slider" min="0" max="1" step="0.05" value="1" title="Volumen" style="width: 55px; flex-grow: 0;">
+                    </div>
+                    <button class="osd-btn" id="btn-settings" title="Configuración de Subtítulos">
+                      <svg viewBox="0 0 24 24"><path d="M19.43 12.98c.04-.32.07-.64.07-.98s-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.23.09.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z"/></svg>
+                    </button>
+                    <button class="osd-btn" id="btn-fullscreen" title="Pantalla Completa">
+                      <svg viewBox="0 0 24 24">
+                        <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- CANAL 3 (CH 3): SINOPSIS & FICHA TÉCNICA (Teletexto) -->
+            <div class="slide" id="slide-ch3">
+              <div class="teletext-content">
+                <div class="ch-indicator">CH 03 // TELETEXTO REGIONAL</div>
+                <div class="teletext-body">
+                  <p class="teletext-header">=== VIENTO LIMAY (1993) ===</p>
+                  <table class="teletext-table">
+                    <tr>
+                      <td class="lbl">DIRECCIÓN:</td>
+                      <td class="val" id="info-director">JAJO EKIZ</td>
+                    </tr>
+                    <tr>
+                      <td class="lbl">GÉNERO:</td>
+                      <td class="val" id="info-genre">DRAMA / NEO-NOIR</td>
+                    </tr>
+                    <tr>
+                      <td class="lbl">DURACIÓN:</td>
+                      <td class="val" id="info-duration">84 MIN</td>
+                    </tr>
+                    <tr>
+                      <td class="lbl">REGIÓN:</td>
+                      <td class="val" id="info-region">RÍO NEGRO</td>
+                    </tr>
+                  </table>
+                  
+                  <p class="teletext-synopsis-title">--- SINOPSIS ---</p>
+                  <p class="teletext-synopsis" id="film-synopsis">
+                    En un paraje remoto de la estepa de Río Negro, un arriero jubilado y un joven operador de video independiente se topan con una señal de radio misteriosa que parece transmitir desde el futuro. A través del viento incesante del Limay, desentrañan una conspiración analógica que cambiará el destino del valle.
+                  </p>
+                </div>
+                <div class="teletext-footer">PAG 303 // VIDEOTECA REGIONAL</div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- ZONAS DE CLICK INVISIBLES SOBRE LOS BOTONES FÍSICOS DE tv.png -->
+      <!-- Botón físico superior de Canal (Siguiente Canal) -->
+      <button class="tv-hotspot btn-ch-up" id="hotspot-ch-up" title="Siguiente Canal (CH+)"></button>
+      
+      <!-- Botón físico inferior de Canal (Anterior Canal) -->
+      <button class="tv-hotspot btn-ch-down" id="hotspot-ch-down" title="Anterior Canal (CH-)"></button>
+      
+      <!-- Interruptor físico POWER en la esquina inferior derecha -->
+      <button class="tv-hotspot btn-power" id="hotspot-power" title="Encendido / Apagado (POWER)"></button>
+    </div>
+
+    <!-- Panel de Control Inferior (Mesa de Control VJ) -->
+    <div class="control-panel">
+      <div class="panel-header">VJ CONTROL STATION // MODEL: CRT-1000</div>
+      
+      <div class="panel-row">
+        <!-- Controles de Encendido -->
+        <div class="panel-group">
+          <span class="group-label">Energía</span>
+          <button class="panel-btn btn-power-toggle" id="panel-power-btn">
+            <span class="led" id="power-led"></span>POWER
+          </button>
+        </div>
+
+        <!-- Selector de Canales -->
+        <div class="panel-group">
+          <span class="group-label">Sintonizador</span>
+          <div class="btn-row">
+            <button class="panel-btn ch-select-btn active" data-channel="1" id="btn-ch1">CH 1</button>
+            <button class="panel-btn ch-select-btn" data-channel="2" id="btn-ch2">CH 2</button>
+            <button class="panel-btn ch-select-btn" data-channel="3" id="btn-ch3">CH 3</button>
+          </div>
+        </div>
+
+        <!-- Controles de Audio/VJ -->
+        <div class="panel-group flex-grow">
+          <span class="group-label">Volumen Cinta</span>
+          <div class="slider-row">
+            <svg viewBox="0 0 24 24" class="slider-icon"><path d="M3 9v6h4l5 5V4L7 9H3z"/></svg>
+            <input type="range" class="panel-slider" id="panel-volume" min="0" max="1" step="0.1" value="1">
+          </div>
+        </div>
+      </div>
+
+      <!-- Pantalla de Estado estilo Terminal -->
+      <div class="terminal-status" id="terminal-status">
+        [SISTEMA] INICIALIZADO // CANAL 1 SINTONIZADO // CINTA DE DETECTADA
+      </div>
+    </div>
+
+    <!-- Indicador de comandos de teclado -->
+    <div class="keyboard-tips">
+      Comandos de Teclado: <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> para sintonizar canales // <kbd>P</kbd> para POWER // <kbd>Espacio</kbd> para Play/Pausa en CH2
+    </div>
+
+  </div>
+
+  <!-- Carga de Metadatos locales e Inicialización -->
+  <script src="datos/metadata.js"></script>
+  <script src="datos/subtitulos.js"></script>
+  <script src="datos/app.js"></script>
+</body>
+</html>
