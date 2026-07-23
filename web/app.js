@@ -382,8 +382,8 @@ document.addEventListener('DOMContentLoaded', () => {
       dosSociosTbody.innerHTML = '';
       socios.forEach(s => {
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${s.num_socio}</td><td>${s.nombre}</td><td>${s.telefono||'--'}</td><td>${s.estado}</td>`;
-        dosSociosTbody.appendChild(tr);
+        tr.innerHTML = `<td>${s.num_socio}</td><td>${s.nombre} ${s.apellido || ''}</td><td>${s.apodo || '--'}</td><td>${s.foto ? '[ FOTO ]' : '--'}</td><td>${s.estado}</td>`;
+      dosSociosTbody.appendChild(tr);
       });
     } catch (e) {}
   }
@@ -448,20 +448,264 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Modales Socio, Evento y Película
   const modalSocio = document.getElementById('modal-socio');
-  document.getElementById('btn-dos-add-socio').addEventListener('click', () => modalSocio.classList.add('active'));
-  document.getElementById('btn-cancel-socio').addEventListener('click', () => modalSocio.classList.remove('active'));
+  
+  // -- Lógica de Cámara Retro (Socio) --
+  const webcamFeed = document.getElementById('webcam-feed');
+  const webcamCanvas = document.getElementById('webcam-canvas');
+  const ctxCam = webcamCanvas ? webcamCanvas.getContext('2d') : null;
+  const btnTomarFoto = document.getElementById('btn-tomar-foto');
+  const btnBorrarFoto = document.getElementById('btn-borrar-foto');
+  const fotoStatus = document.getElementById('foto-status');
+  
+  let cameraStream = null;
+  let renderInterval = null;
+  let photoData = "";
+  
+  const camBrillo = document.getElementById('cam-brillo');
+  const camContraste = document.getElementById('cam-contraste');
+  const camFiltro = document.getElementById('cam-filtro');
+  const camDithering = document.getElementById('cam-dithering');
+
+  const palettes = {
+    ega: [
+      [0,0,0], [0,0,170], [0,170,0], [0,170,170], [170,0,0], [170,0,170], [170,85,0], [170,170,170],
+      [85,85,85], [85,85,255], [85,255,85], [85,255,255], [255,85,85], [255,85,255], [255,255,85], [255,255,255]
+    ],
+    cga1: [ [0,0,0], [85,255,255], [255,85,255], [255,255,255] ],
+    cga0: [ [0,0,0], [85,255,85], [255,85,85], [255,255,85] ],
+    gb: [ [15,56,15], [48,98,48], [139,172,15], [155,188,15] ],
+    bw: [ [0,0,0], [0,255,51] ]
+  };
+
+  const bayer = [
+    [ 0,  8,  2, 10],
+    [12,  4, 14,  6],
+    [ 3, 11,  1,  9],
+    [15,  7, 13,  5]
+  ];
+
+  function getClosestColor(r, g, b, pal) {
+    let minDist = Infinity;
+    let closest = pal[0];
+    for (let i = 0; i < pal.length; i++) {
+      let p = pal[i];
+      let d = (r - p[0])**2 + (g - p[1])**2 + (b - p[2])**2;
+      if (d < minDist) {
+        minDist = d;
+        closest = p;
+      }
+    }
+    return closest;
+  }
+
+  let scanIndex = 0;
+  const pixelsPerTick = 853; // ~24 FPS para procesar 19200 píxeles, tarda cerca de 1 seg.
+  const offscreenCanvas = document.createElement('canvas');
+  offscreenCanvas.width = 160;
+  offscreenCanvas.height = 120;
+  const offscreenCtx = offscreenCanvas.getContext('2d', { willReadFrequently: true });
+
+  function processRetroFrame() {
+    if (!webcamFeed || !ctxCam || webcamFeed.paused || webcamFeed.ended) return;
+    
+    if (scanIndex === 0) {
+      offscreenCtx.drawImage(webcamFeed, 0, 0, 160, 120);
+    }
+    
+    let brightness = camBrillo ? parseInt(camBrillo.value) : 0;
+    let contrast = camContraste ? parseInt(camContraste.value) : 20;
+    let useDither = camDithering ? camDithering.checked : true;
+    let palKey = camFiltro ? camFiltro.value : 'ega';
+    let currentPal = palettes[palKey] || palettes.ega;
+    let factor = (259 * (contrast + 255)) / (255 * (259 - contrast));
+    let spread = (palKey === 'bw') ? 128 : 64; 
+    
+    let inData = offscreenCtx.getImageData(0, 0, 160, 120).data;
+    let currentDisplay = ctxCam.getImageData(0, 0, 160, 120);
+    let outData = currentDisplay.data;
+    
+    let endIdx = Math.min(160 * 120, scanIndex + pixelsPerTick);
+    
+    for (let p = scanIndex; p < endIdx; p++) {
+      let x = p % 160;
+      let y = Math.floor(p / 160);
+      let i = p * 4;
+      
+      let r = inData[i], g = inData[i+1], b = inData[i+2];
+      
+      r += brightness; g += brightness; b += brightness;
+      r = factor * (r - 128) + 128;
+      g = factor * (g - 128) + 128;
+      b = factor * (b - 128) + 128;
+      
+      if (useDither) {
+        let threshold = (bayer[y % 4][x % 4] / 16) - 0.5;
+        r += threshold * spread;
+        g += threshold * spread;
+        b += threshold * spread;
+      }
+
+      r = Math.max(0, Math.min(255, r));
+      g = Math.max(0, Math.min(255, g));
+      b = Math.max(0, Math.min(255, b));
+
+      let c = getClosestColor(r, g, b, currentPal);
+      
+      outData[i] = c[0];
+      outData[i+1] = c[1];
+      outData[i+2] = c[2];
+      outData[i+3] = 255; // Alpha
+    }
+
+    ctxCam.putImageData(currentDisplay, 0, 0);
+
+    scanIndex = endIdx;
+    if (scanIndex >= 160 * 120) {
+      scanIndex = 0;
+    }
+  }
+
+  const cameraSelect = document.getElementById('camera-select');
+
+  async function populateCameraSelect() {
+    if (!cameraSelect) return;
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoDevices = devices.filter(device => device.kind === 'videoinput');
+      
+      const currentValue = cameraSelect.value;
+      cameraSelect.innerHTML = '';
+      videoDevices.forEach((device, index) => {
+        const option = document.createElement('option');
+        option.value = device.deviceId;
+        option.text = device.label || `Cámara ${index + 1}`;
+        if (device.deviceId === currentValue) option.selected = true;
+        cameraSelect.appendChild(option);
+      });
+    } catch (e) {}
+  }
+
+  async function startCamera(deviceId = null) {
+    photoData = "";
+    if (btnTomarFoto) btnTomarFoto.style.display = 'inline-block';
+    if (btnBorrarFoto) btnBorrarFoto.style.display = 'none';
+    
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(t => t.stop());
+    }
+
+    const constraints = {
+      audio: false,
+      video: deviceId ? { deviceId: { exact: deviceId } } : true
+    };
+    
+    try {
+      cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+      if (webcamFeed) {
+        webcamFeed.srcObject = cameraStream;
+        webcamFeed.play();
+      }
+      if (fotoStatus) {
+        fotoStatus.textContent = "* Procesando Cinta (1 FPS)";
+        fotoStatus.style.color = "var(--dos-green-bright)";
+      }
+      if (renderInterval) clearInterval(renderInterval);
+      scanIndex = 0;
+      renderInterval = setInterval(processRetroFrame, 30); // Actualización de barrido
+      
+      // Llenar select si está vacío, después de tener permisos
+      if (cameraSelect && cameraSelect.options.length === 0) {
+        await populateCameraSelect();
+      }
+    } catch (err) {
+      if (fotoStatus) {
+        fotoStatus.textContent = "* Error al iniciar cámara";
+        fotoStatus.style.color = "red";
+      }
+    }
+  }
+
+  if (cameraSelect) {
+    cameraSelect.addEventListener('change', () => {
+      startCamera(cameraSelect.value);
+    });
+  }
+
+  function stopCamera() {
+    if (renderInterval) clearInterval(renderInterval);
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(t => t.stop());
+    }
+    if (webcamFeed) webcamFeed.srcObject = null;
+    if (fotoStatus) {
+      fotoStatus.textContent = "* Cámara Desactivada";
+      fotoStatus.style.color = "yellow";
+    }
+  }
+
+  if (btnTomarFoto) {
+    btnTomarFoto.addEventListener('click', () => {
+      if (!cameraStream) return;
+      clearInterval(renderInterval); 
+      if (webcamCanvas) photoData = webcamCanvas.toDataURL('image/png');
+      if (fotoStatus) {
+        fotoStatus.textContent = "* Foto Capturada";
+        fotoStatus.style.color = "var(--dos-green-bright)";
+      }
+      btnTomarFoto.style.display = 'none';
+      btnBorrarFoto.style.display = 'inline-block';
+    });
+  }
+
+  if (btnBorrarFoto) {
+    btnBorrarFoto.addEventListener('click', () => {
+      photoData = "";
+      if (fotoStatus) fotoStatus.textContent = "* Cámara Activa (8 FPS)";
+      btnBorrarFoto.style.display = 'none';
+      btnTomarFoto.style.display = 'inline-block';
+      if (renderInterval) clearInterval(renderInterval);
+      renderInterval = setInterval(processRetroFrame, 125);
+    });
+  }
+
+  document.getElementById('btn-dos-add-socio').addEventListener('click', () => {
+    modalSocio.classList.add('active');
+    startCamera();
+  });
+  
+  document.getElementById('btn-cancel-socio').addEventListener('click', () => {
+    modalSocio.classList.remove('active');
+    stopCamera();
+  });
 
   document.getElementById('btn-confirm-socio').addEventListener('click', async () => {
     const nombre = document.getElementById('inp-socio-nombre').value;
-    const tel = document.getElementById('inp-socio-tel').value;
+    const apellido = document.getElementById('inp-socio-apellido').value;
+    const apodo = document.getElementById('inp-socio-apodo').value;
+    const direccion = document.getElementById('inp-socio-direccion').value;
+    const redSocialText = document.getElementById('inp-socio-red-social').value;
+    
+    const rsBoxes = document.querySelectorAll('input[name="rs-tipo"]:checked');
+    let rsTipos = Array.from(rsBoxes).map(cb => cb.value).join(', ');
+    let red_social = rsTipos ? `[${rsTipos}] ${redSocialText}` : redSocialText;
+
     if (nombre) {
       await fetch('/api/add-socio', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nombre, telefono: tel })
+        body: JSON.stringify({ nombre, apellido, apodo, direccion, red_social, foto: photoData })
       });
       modalSocio.classList.remove('active');
+      stopCamera();
       loadSocios();
+      
+      // Limpiar campos
+      document.getElementById('inp-socio-nombre').value = '';
+      document.getElementById('inp-socio-apellido').value = '';
+      document.getElementById('inp-socio-apodo').value = '';
+      document.getElementById('inp-socio-direccion').value = '';
+      document.getElementById('inp-socio-red-social').value = '';
+      rsBoxes.forEach(cb => cb.checked = false);
     }
   });
 

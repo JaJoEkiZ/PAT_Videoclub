@@ -456,3 +456,30 @@ body.crt-disabled .dos-shell-wrapper {
   justify-content: flex-end;
   gap: 8px;
 }
+
+/* Checkboxes Retro Monocromo */
+.dos-checkbox {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+  font-family: var(--font-dos);
+  color: var(--dos-green);
+}
+.dos-checkbox input[type='checkbox'] {
+  display: none;
+}
+.dos-checkbox span::before {
+  content: '[   ]'; font-size: 16px; font-weight: bold;
+  display: inline-block;
+  margin-right: 5px;
+  color: var(--dos-green-dim);
+}
+.dos-checkbox input[type='checkbox']:checked + span::before {
+  content: '[ █ ]'; font-size: 16px; font-weight: bold;
+  color: var(--dos-green-bright);
+}
+.dos-checkbox:hover span::before {
+  color: var(--dos-green-bright);
+  text-shadow: var(--glow-dos);
+}

@@ -47,10 +47,23 @@ class DatabaseManager:
                     num_socio TEXT UNIQUE NOT NULL,
                     nombre TEXT NOT NULL,
                     telefono TEXT,
+                    apellido TEXT,
+                    apodo TEXT,
+                    foto TEXT,
+                    red_social TEXT,
+                    direccion TEXT,
                     estado TEXT DEFAULT 'ACTIVO',
                     fecha_alta DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
             ''')
+            
+            # Migraciones para esquema existente
+            new_columns = ['apellido', 'apodo', 'foto', 'red_social', 'direccion']
+            for col in new_columns:
+                try:
+                    cur.execute(f"ALTER TABLE socios ADD COLUMN {col} TEXT")
+                except sqlite3.OperationalError:
+                    pass # La columna ya existe
             cur.execute('''
                 CREATE TABLE IF NOT EXISTS eventos (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -683,7 +696,11 @@ class ControlStationRequestHandler(SimpleHTTPRequestHandler):
 
         elif path == '/api/add-socio':
             nombre = body.get('nombre', '').strip()
-            telefono = body.get('telefono', '').strip()
+            apellido = body.get('apellido', '').strip()
+            apodo = body.get('apodo', '').strip()
+            foto = body.get('foto', '').strip()
+            red_social = body.get('red_social', '').strip()
+            direccion = body.get('direccion', '').strip()
 
             if not nombre:
                 self.send_json({"error": "Nombre es requerido"}, status=400)
@@ -692,7 +709,10 @@ class ControlStationRequestHandler(SimpleHTTPRequestHandler):
             num_socio = f"SOC-{int(time.time()) % 10000:04d}"
             with db.get_conn() as conn:
                 cur = conn.cursor()
-                cur.execute("INSERT INTO socios (num_socio, nombre, telefono) VALUES (?, ?, ?)", (num_socio, nombre, telefono))
+                cur.execute(
+                    "INSERT INTO socios (num_socio, nombre, apellido, apodo, foto, red_social, direccion) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    (num_socio, nombre, apellido, apodo, foto, red_social, direccion)
+                )
                 conn.commit()
                 soc_id = cur.lastrowid
 
