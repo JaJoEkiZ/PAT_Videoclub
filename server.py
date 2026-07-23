@@ -197,6 +197,13 @@ class ControlStationRequestHandler(SimpleHTTPRequestHandler):
         else:
             super().do_GET()
 
+    def do_OPTIONS(self):
+        self.send_response(200)
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.end_headers()
+
     def do_POST(self):
         parsed = urllib.parse.urlparse(self.path)
         content_length = int(self.headers.get('Content-Length', 0))
@@ -258,11 +265,85 @@ class ControlStationRequestHandler(SimpleHTTPRequestHandler):
                 peliculas = [dict(r) for r in conn.execute("SELECT * FROM peliculas").fetchall()]
             self.send_json(peliculas)
 
+        elif path == '/api/drives':
+            drives = []
+            drives_info = []
+            if os.name == 'nt':
+                import ctypes
+                # Prevenir que Windows bloquee el thread con popups de "Inserte un disco en la unidad E:"
+                ctypes.windll.kernel32.SetErrorMode(1)
+                
+                bitmask = ctypes.windll.kernel32.GetLogicalDrives()
+                for letter in 'CDEFGHIJKLMNOPQRSTUVWXYZ':
+                    if bitmask & (1 << (ord(letter) - ord('A'))):
+                        drive_path = f"{letter}:\\"
+                        if os.path.exists(drive_path):
+                            drives.append(drive_path)
+                            dtype = ctypes.windll.kernel32.GetDriveTypeW(drive_path)
+                            buf = ctypes.create_unicode_buffer(1024)
+                            res = ctypes.windll.kernel32.GetVolumeInformationW(drive_path, buf, 1024, None, None, None, None, 0)
+                            label = buf.value if (res and buf.value) else ""
+                            type_str = {
+                                1: "SIN_RAIZ",
+                                2: "USB/REMOVIBLE",
+                                3: "DISCO_LOCAL",
+                                4: "RED",
+                                5: "CD/DVD"
+                            }.get(dtype, "DISCO")
+                            
+                            if not label:
+                                label = "USB Removible" if dtype == 2 else f"Disco Local ({letter}:)"
+                                
+                            drives_info.append({
+                                "path": drive_path,
+                                "letter": f"{letter}:",
+                                "label": label,
+                                "is_usb": (dtype == 2 or "usb" in label.lower() or "peli-usb" in label.lower()),
+                                "type": dtype,
+                                "type_str": type_str
+                            })
+            
+            test_path = r"C:\Users\JaJo EkiZ\Desktop\Peli-Usb"
+            if os.path.exists(test_path) and test_path not in drives:
+                drives.append(test_path)
+                drives_info.append({
+                    "path": test_path,
+                    "letter": "C:\\PELI-USB",
+                    "label": "Peli-Usb (Pruebas Local)",
+                    "is_usb": True,
+                    "type": 2,
+                    "type_str": "MASTER LOCAL"
+                })
+                
+            if session_state["active_drive_path"] not in drives and os.path.exists(session_state["active_drive_path"]):
+                drives.append(session_state["active_drive_path"])
+                drives_info.append({
+                    "path": session_state["active_drive_path"],
+                    "letter": session_state["active_drive_path"],
+                    "label": "Unidad Activa",
+                    "is_usb": True,
+                    "type": 2,
+                    "type_str": "ACTIVA"
+                })
+                
+            self.send_json({
+                "drives": drives,
+                "drives_info": drives_info,
+                "active_drive_path": session_state["active_drive_path"]
+            })
+
         elif path == '/api/scan':
             drive = session_state["active_drive_path"]
             usb_info = inspect_drive(drive)
             if not usb_info:
-                self.send_json({"error": "No se detectó pendrive válido en la unidad."}, status=400)
+                self.send_json({
+                    "id_usb": "SIN ID",
+                    "titulo": f"Unidad sin inicializar ({drive})",
+                    "estado_global": "CORRUPTO",
+                    "summary": {"ok": 0, "altered": 0, "missing": 0, "unknown": 0},
+                    "report": [],
+                    "error": f"No se encontró datos/metadata.json en {drive}. Seleccione otra unidad en la barra o utilice [F6] para generar un pendrive master."
+                })
                 return
             
             expected_hashes = usb_info.get("hashes", {})
@@ -321,12 +402,12 @@ class ControlStationRequestHandler(SimpleHTTPRequestHandler):
 
     def handle_api_post(self, path, body):
         if path == '/api/select-drive':
-            drive = body.get('drive')
-            if drive and os.path.exists(drive):
-                session_state['active_drive_path'] = drive
-                self.send_json({"status": "OK", "active_drive_path": drive})
+            target_path = body.get('path') or body.get('drive')
+            if target_path and os.path.exists(target_path):
+                session_state["active_drive_path"] = target_path
+                self.send_json({"status": "OK", "active_drive_path": session_state["active_drive_path"]})
             else:
-                self.send_json({"error": "Ruta inválida"}, status=400)
+                self.send_json({"error": "Ruta inválida"}, 400)
 
         elif path == '/api/select-event':
             evt_id = body.get('event_id')

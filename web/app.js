@@ -3,6 +3,29 @@
    Lógica MS-DOS Shell / BIOS TUI Engine (Keyboard + REST API)
    ========================================================================== */
 
+// Garantizar que la API siempre apunte al servidor Python en el puerto 5000
+const originalFetch = window.fetch;
+window.fetch = async function(url, options) {
+  if (typeof url === 'string' && url.startsWith('/api/')) {
+    url = 'http://127.0.0.1:5000' + url;
+  }
+  
+  try {
+    const res = await originalFetch(url, options);
+    // Verificar si recibimos HTML (ej. página 404 de Laravel/Laragon en puerto 8000)
+    const clone = res.clone();
+    const text = await clone.text();
+    if (text.trim().startsWith('<!DOCTYPE html>') || text.trim().startsWith('<html')) {
+      console.warn('Alerta: Se recibió HTML en lugar de JSON en la ruta:', url);
+      // Simular un error de red o response .ok = false para evitar petar la UI con JSON.parse
+      return { ok: false, json: async () => { throw new Error('HTML response'); }, text: async () => text };
+    }
+    return res;
+  } catch (e) {
+    return { ok: false, json: async () => { throw e; }, text: async () => "" };
+  }
+};
+
 document.addEventListener('DOMContentLoaded', () => {
 
   // Elementos DOM MS-DOS
@@ -100,6 +123,16 @@ document.addEventListener('DOMContentLoaded', () => {
         dosEvtLugar.textContent = data.event.lugar;
       }
 
+      if (data.session && data.session.active_drive_path) {
+        const activeDrive = data.session.active_drive_path;
+        const paneTitle = document.getElementById('pane-right-title');
+        if (paneTitle) paneTitle.textContent = `${activeDrive}\\*.* (Auditoría Criptográfica SHA-256)`;
+        const treeRoot = document.getElementById('tree-root');
+        if (treeRoot) treeRoot.innerHTML = `<span class="dos-tree-icon">[+]</span> ${activeDrive}`;
+        const genInput = document.getElementById('gen-drive-path');
+        if (genInput) genInput.value = activeDrive;
+      }
+
       if (data.usb) {
         dosUsbId.textContent = data.usb.id_usb || 'USB-001';
         dosUsbObra.textContent = data.usb.titulo || 'Viento Limay';
@@ -137,6 +170,13 @@ document.addEventListener('DOMContentLoaded', () => {
       currentAuditData = data;
 
       dosAuditTbody.innerHTML = '';
+
+      if (data.error && data.report.length === 0) {
+        dosGlobalStatus.textContent = "[ SIN METADATA O VACÍO ]";
+        dosGlobalStatus.style.color = "yellow";
+        dosAuditTbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: yellow; padding: 20px;">${data.error}</td></tr>`;
+        return;
+      }
 
       if (data.estado_global === 'INTEGRO') {
         dosGlobalStatus.textContent = "[ 100% ÍNTEGRO ]";
@@ -518,14 +558,161 @@ document.addEventListener('DOMContentLoaded', () => {
   applyCrtState();
 
   // --------------------------------------------------------------------------
-  // 11. ATAJOS DE TECLADO RETRO (F2, F3, F4, F5, F6, F9)
+  // 11. ATAJOS DE TECLADO RETRO & SELECCIÓN DINÁMICA DE UNIDADES
   // --------------------------------------------------------------------------
+  async function fetchDrives() {
+    try {
+      const res = await fetch('/api/drives');
+      if (!res.ok) {
+        const bar = document.getElementById('dos-drives-bar');
+        if (bar) {
+          bar.innerHTML = '<span style="color: yellow; font-weight: bold;">[ ⚠️ REINICIE SERVER.PY EN LA TERMINAL PARA DETECTAR UNIDADES ]</span>';
+        }
+        return;
+      }
+      const data = await res.json();
+      const list = data.drives_info || (data.drives ? data.drives.map(d => ({ path: d, letter: d.slice(0, 2), label: d, is_usb: false })) : []);
+      renderDrivesBar(list, data.active_drive_path);
+      updateAuditSelect(list, data.active_drive_path);
+    } catch (e) {
+      console.error("Error al cargar unidades:", e);
+    }
+  }
+
+  function renderDrivesBar(drivesList, activeDrive) {
+    const bar = document.getElementById('dos-drives-bar');
+    if (!bar) return;
+    bar.innerHTML = '<span>Unidad Activa:</span>';
+
+    drivesList.forEach(item => {
+      const d = typeof item === 'string' ? item : item.path;
+      const btn = document.createElement('button');
+      btn.className = 'dos-drive-btn' + (d === activeDrive ? ' active' : '');
+      
+      let label = d;
+      if (typeof item === 'object') {
+        const icon = (item.is_usb || item.type === 2) ? '[💾 USB] ' : '[🖴 HD] ';
+        if (item.path.includes('Peli-Usb') || item.path.includes('PELI-USB')) {
+          label = `[C:\\PELI-USB Master]`;
+        } else if (item.label && item.label !== `Disco Local (${item.letter})` && !item.label.includes('Disco Local')) {
+          label = `${icon}[${item.letter} ${item.label}]`;
+        } else {
+          label = `${icon}[${item.letter}]`;
+        }
+        if (item.is_usb || item.type === 2) {
+          btn.style.color = "var(--dos-green-bright)";
+          btn.style.borderColor = "var(--dos-green-bright)";
+        }
+      } else {
+        if (d.length <= 3 && d.endsWith('\\')) {
+          label = `[${d.slice(0, 2)}]`;
+        } else if (d.includes('Peli-Usb') || d.includes('PELI-USB')) {
+          label = `[C:\\PELI-USB]`;
+        } else {
+          label = `[${d}]`;
+        }
+      }
+      btn.textContent = label;
+      btn.title = typeof item === 'object' ? `${item.path} (${item.type_str}: ${item.label})` : d;
+      btn.addEventListener('click', () => selectDrive(d));
+      bar.appendChild(btn);
+    });
+
+    const customBtn = document.createElement('button');
+    customBtn.className = 'dos-drive-btn';
+    customBtn.style.color = 'yellow';
+    customBtn.textContent = '[+ Otra...]';
+    customBtn.addEventListener('click', () => {
+      const newDrive = prompt("Ingrese letra de unidad o ruta de carpeta a auditar (Ej: E:\\ o D:\\):", activeDrive);
+      if (newDrive && newDrive.trim()) {
+        selectDrive(newDrive.trim());
+      }
+    });
+    bar.appendChild(customBtn);
+  }
+
+  function updateAuditSelect(drivesList, activeDrive) {
+    const select = document.getElementById('audit-drive-select');
+    if (!select) return;
+    select.innerHTML = '';
+    drivesList.forEach(item => {
+      const d = typeof item === 'string' ? item : item.path;
+      const opt = document.createElement('option');
+      opt.value = d;
+      
+      let labelText = d;
+      if (typeof item === 'object') {
+        if (item.path.includes('Peli-Usb') || item.path.includes('PELI-USB')) {
+          labelText = `[MASTER] ${item.path} (${item.label})`;
+        } else {
+          const typeTag = (item.is_usb || item.type === 2) ? '[💾 USB REMOVIBLE]' : '[🖴 DISCO LOCAL]';
+          labelText = `${typeTag} ${item.letter} -> ${item.label || 'Sin Etiqueta'}`;
+        }
+      } else {
+        if (d.includes('Peli-Usb') || d.includes('PELI-USB')) {
+          labelText = `${d} (Local Master)`;
+        } else if (d.length <= 3) {
+          labelText = `${d} (Unidad de Disco/USB)`;
+        }
+      }
+      opt.textContent = labelText;
+      if (d === activeDrive) opt.selected = true;
+      select.appendChild(opt);
+    });
+  }
+
+  async function selectDrive(drivePath) {
+    try {
+      const res = await fetch('/api/select-drive', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ drive: drivePath })
+      });
+      const data = await res.json();
+      if (res.ok && data.status === 'OK') {
+        await fetchDrives();
+        await fetchStatus();
+        const genInput = document.getElementById('gen-drive-path');
+        if (genInput) genInput.value = data.active_drive_path || drivePath;
+        if (document.getElementById('pane-auditoria') && document.getElementById('pane-auditoria').classList.contains('active')) {
+          runAudit();
+        }
+      } else {
+        alert("No se pudo seleccionar la unidad: " + (data.error || "Ruta no accesible"));
+      }
+    } catch (e) {
+      alert("Error de conexión al cambiar la unidad.");
+    }
+  }
+
+  const auditSelect = document.getElementById('audit-drive-select');
+  if (auditSelect) {
+    auditSelect.addEventListener('change', (e) => selectDrive(e.target.value));
+  }
+  const btnRefreshDrives = document.getElementById('btn-audit-refresh-drives');
+  if (btnRefreshDrives) {
+    btnRefreshDrives.addEventListener('click', fetchDrives);
+  }
+  const btnCustomDrive = document.getElementById('btn-audit-custom-drive');
+  if (btnCustomDrive) {
+    btnCustomDrive.addEventListener('click', () => {
+      const current = auditSelect ? auditSelect.value : '';
+      const newDrive = prompt("Ingrese la ruta completa o letra de unidad a auditar (Ej: E:\\):", current);
+      if (newDrive && newDrive.trim()) {
+        selectDrive(newDrive.trim());
+      }
+    });
+  }
+
+  fetchDrives();
+
   window.addEventListener('keydown', (e) => {
     if (e.key === 'F2') { e.preventDefault(); btnF2Alquilar.click(); }
     if (e.key === 'F3') { e.preventDefault(); runAudit(); }
     if (e.key === 'F4') { e.preventDefault(); btnF4Devolver.click(); }
     if (e.key === 'F5') { e.preventDefault(); showView('generador'); }
     if (e.key === 'F6') { e.preventDefault(); showView('socios'); }
+    if (e.key === 'F8') { e.preventDefault(); fetchDrives(); }
     if (e.key === 'F9') { e.preventDefault(); toggleCrt(); }
   });
 

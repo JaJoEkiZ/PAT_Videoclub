@@ -194,11 +194,11 @@ class USBManager:
 
     def detect_drives(self):
         drives = []
-        # En Windows probar de D: a Z:
+        # En Windows probar de C: a Z:
         if os.name == 'nt':
             import ctypes
             bitmask = ctypes.windll.kernel32.GetLogicalDrives()
-            for letter in 'EFGHIJKLMNOPQRSTUVWXYZ':
+            for letter in 'CDEFGHIJKLMNOPQRSTUVWXYZ':
                 if bitmask & (1 << (ord(letter) - ord('A'))):
                     drive_path = f"{letter}:\\"
                     if os.path.exists(drive_path):

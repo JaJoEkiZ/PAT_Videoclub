@@ -31,11 +31,9 @@
       <div class="dos-menu-item" id="btn-toggle-crt-top" style="margin-left: auto;">[ CRT FX: ON ]</div>
     </div>
 
-    <!-- BARRA DE UNIDADES DE DISCO ([A:] [B:] [C:\PELI-USB]) -->
-    <div class="dos-drives-bar">
+    <!-- BARRA DE UNIDADES DE DISCO DINÁMICA -->
+    <div class="dos-drives-bar" id="dos-drives-bar">
       <span>Unidad Activa:</span>
-      <button class="dos-drive-btn">[A:]</button>
-      <button class="dos-drive-btn">[B:]</button>
       <button class="dos-drive-btn active" id="btn-drive-c">[C:\PELI-USB]</button>
     </div>
 
@@ -110,6 +108,15 @@
           <div class="dos-box-header">
             <span id="pane-right-title">C:\PELI-USB\*.* (Auditoría Criptográfica SHA-256)</span>
             <span id="dos-global-status">[ SIN AUDITAR ]</span>
+          </div>
+          <!-- BARRA DE SELECCIÓN DE UNIDAD PARA AUDITAR -->
+          <div class="dos-audit-controls" style="background-color: #08120a; border-bottom: 1px solid var(--dos-green-dim); padding: 8px 14px; display: flex; align-items: center; gap: 10px; font-size: 13px; flex-wrap: wrap;">
+            <span style="color: var(--dos-green-bright); font-weight: bold;">[ UNIDAD A AUDITAR ]:</span>
+            <select id="audit-drive-select" class="dos-input" style="width: 280px; padding: 4px; font-weight: bold; cursor: pointer; background: #040905; color: var(--dos-green-bright); border: 1px solid var(--dos-green-bright);">
+              <option value="C:\Users\JaJo EkiZ\Desktop\Peli-Usb">C:\Users\JaJo EkiZ\Desktop\Peli-Usb</option>
+            </select>
+            <button class="dos-btn" id="btn-audit-refresh-drives" title="Detectar unidades y discos conectados"><span class="key">[ F8 ]</span> Detectar</button>
+            <button class="dos-btn" id="btn-audit-custom-drive" title="Escribir manualmente ruta o letra de unidad">[ + Otra Ruta... ]</button>
           </div>
           <div class="dos-box-body" style="padding: 0;">
             <table class="dos-table">
@@ -378,6 +385,6 @@
 
   </div>
 
-  <script src="app.js"></script>
+  <script src="app.js?v=2"></script>
 </body>
 </html>
